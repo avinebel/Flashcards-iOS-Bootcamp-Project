@@ -97,6 +97,7 @@ struct FlashcardView: View {
         .onAppear {
             selection = set.cards.first?.id
             previousCard = selection
+            currCardCount = 1
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
