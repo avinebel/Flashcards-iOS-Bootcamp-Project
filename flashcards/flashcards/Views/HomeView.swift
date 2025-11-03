@@ -22,7 +22,7 @@ struct HomeView: View {
                 // Card Sets
                 LazyVGrid(columns: grid, spacing: 16) {
                     ForEach(sets) { set in
-                        NavigationLink(value: set) {
+                        NavigationLink(destination: FlashcardView(set: set)) {
                             SetCardView(set: set)
                         }
                         .buttonStyle(.plain)
