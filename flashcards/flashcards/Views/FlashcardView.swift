@@ -13,6 +13,7 @@ struct FlashcardView: View {
     @State private var flippedCard: UUID? = nil
     @State private var previousCard: UUID? = nil
     @Environment(\.dismiss) var dismiss
+    @State private var currCardCount: Int = 1
     
     var body: some View {
         VStack {
@@ -63,7 +64,10 @@ struct FlashcardView: View {
             
             // Navigation buttons
             HStack {
-                Button { moveCard(-1) } label: {
+                Button {
+                    moveCard(-1)
+                    currCardCount = currCardCount - 1
+                } label: {
                     Image(systemName: "chevron.left")
                         .padding()
                         .foregroundStyle(Color.gray)
@@ -71,8 +75,15 @@ struct FlashcardView: View {
                 }
                 
                 Spacer()
+                Text("\(currCardCount)/\(set.cardCount)")
+                    .foregroundStyle(set.color.opacity(0.4))
+                    .font(.title)
+                Spacer()
                 
-                Button { moveCard(1) } label: {
+                Button {
+                    moveCard(1)
+                    currCardCount = currCardCount + 1
+                } label: {
                     Image(systemName: "chevron.right")
                         .padding()
                         .foregroundStyle(Color.gray)
