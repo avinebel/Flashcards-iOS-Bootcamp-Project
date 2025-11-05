@@ -24,4 +24,5 @@ struct AppView: View {
 
 #Preview {
     AppView()
+        .environmentObject(AuthViewModel()) // You might want to implement this for any preview
 }
