@@ -39,3 +39,7 @@ build/
 *~
 *.dat
 *.dep
+
+# Firebase
+GoogleService-Info.plist
+
