@@ -33,15 +33,28 @@ struct FlashcardSet: Identifiable, Hashable {
     var color: Color
     var updatedAt: Date
     var cards: [Flashcard]
-
+    var isPublic: Bool
+    var shareCode: String?
+    var ownerId: String?
+    
     var cardCount: Int { cards.count }
 
-    init(id: UUID = UUID(), title: String, color: Color, updatedAt: Date = .now, cards: [Flashcard] = []) {
+    init(id: UUID = UUID(), 
+         title: String, 
+         color: Color, 
+         updatedAt: Date = .now, 
+         cards: [Flashcard] = [],
+         isPublic: Bool = false,
+         shareCode: String? = nil,
+         ownerId: String? = nil) {
         self.id = id
         self.title = title
         self.color = color
         self.updatedAt = updatedAt
         self.cards = cards
+        self.isPublic = isPublic
+        self.shareCode = shareCode
+        self.ownerId = ownerId
     }
 }
 
