@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseFirestore
 import FirebaseAuth
+import Combine
 
 @MainActor
 final class SetSharingViewModel: ObservableObject {
