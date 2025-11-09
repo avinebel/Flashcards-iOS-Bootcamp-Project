@@ -6,7 +6,8 @@
 //
 
 import SwiftUI
-import FirebaseCore 
+import FirebaseCore
+import Combine
 
 @main
 struct flashcardsApp: App {
