@@ -3,12 +3,16 @@ import FirebaseFirestore
 import FirebaseAuth
 
 @MainActor
-final class SetSharingViewModel: NSObject, ObservableObject {
+final class SetSharingViewModel: ObservableObject {
     @Published var publicSets: [FlashcardSet] = []
     @Published var errorMessage: String?
     @Published var isLoading = false
     
-    private let db = Firestore.firestore()
+    private let db: Firestore
+    
+    init() {
+        self.db = Firestore.firestore()
+    }
     
     // Generate a random 6-character share code
     func generateShareCode() -> String {
@@ -23,7 +27,7 @@ final class SetSharingViewModel: NSObject, ObservableObject {
         var setData: [String: Any] = [
             "id": set.id.uuidString,
             "title": set.title,
-            "color": set.color.description,
+            "color": "blue", // Store as a simple string since Color isn't directly serializable
             "updatedAt": set.updatedAt,
             "isPublic": set.isPublic,
             "ownerId": userId,
@@ -78,7 +82,7 @@ final class SetSharingViewModel: NSObject, ObservableObject {
                 return FlashcardSet(
                     id: UUID(uuidString: doc.documentID) ?? UUID(),
                     title: title,
-                    color: Color(colorString),
+                    color: .blue, // Default to blue since we can't reliably serialize Color
                     updatedAt: updatedAt,
                     cards: cards,
                     isPublic: isPublic,
@@ -106,10 +110,17 @@ final class SetSharingViewModel: NSObject, ObservableObject {
             
             // Create a new set with a new ID but same content
             if let set = publicSets.first(where: { $0.id.uuidString == doc.documentID }) {
-                var newSet = set
-                newSet.id = UUID() // Generate new ID
-                newSet.ownerId = Auth.auth().currentUser?.uid // Set new owner
-                newSet.shareCode = nil // Remove share code
+                // Create a new set with new ID but same content
+                let newSet = FlashcardSet(
+                    id: UUID(),  // New ID
+                    title: set.title,
+                    color: set.color,
+                    updatedAt: .now,
+                    cards: set.cards,
+                    isPublic: false,  // Make it private by default
+                    shareCode: nil,   // No share code
+                    ownerId: Auth.auth().currentUser?.uid
+                )
                 await saveSet(newSet)
                 return true
             }
