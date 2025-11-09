@@ -3,7 +3,7 @@ import FirebaseFirestore
 import FirebaseAuth
 
 @MainActor
-class SetSharingViewModel: ObservableObject {
+final class SetSharingViewModel: NSObject, ObservableObject {
     @Published var publicSets: [FlashcardSet] = []
     @Published var errorMessage: String?
     @Published var isLoading = false

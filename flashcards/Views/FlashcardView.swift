@@ -146,7 +146,9 @@ struct FlippableCard: View {
                     .shadow(radius: 2)
             }
         }
-        .frame(width: UIScreen.main.bounds.width * 0.9, height: 300)
+        .frame(maxWidth: .infinity)
+        .frame(height: 300)
+        .padding(.horizontal)
         .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
         .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isFlipped)
     }
