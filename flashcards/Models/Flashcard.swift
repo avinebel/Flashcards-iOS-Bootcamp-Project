@@ -59,7 +59,7 @@ struct FlashcardSet: Identifiable, Hashable {
 }
 
 struct SampleData {
-    static let sets: [FlashcardSet] = [
+    static var sets: [FlashcardSet] = [
         .init(
             title: "English Words",
             color: .blue,
@@ -100,3 +100,27 @@ struct SampleData {
         )
     ]
 }
+
+extension Color {
+    // Convert Color to hex string
+    var hex: String? {
+        guard let components = UIColor(self).cgColor.components else { return nil }
+        let r = Int(components[0] * 255)
+        let g = Int(components[1] * 255)
+        let b = Int(components[2] * 255)
+        return String(format: "#%02X%02X%02X", r, g, b)
+    }
+
+    // Create Color from hex string
+    init?(hex: String) {
+        var hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        guard hex.count == 6 else { return nil }
+        var int = UInt64()
+        Scanner(string: hex).scanHexInt64(&int)
+        let r = Double((int >> 16) & 0xFF) / 255
+        let g = Double((int >> 8) & 0xFF) / 255
+        let b = Double(int & 0xFF) / 255
+        self.init(red: r, green: g, blue: b)
+    }
+}
+

@@ -59,6 +59,12 @@ struct FlashcardView: View {
                         flippedCard = nil
                     }
                 }
+                
+                if let newSelection = selection,
+                   let newIndex = set.cards.firstIndex(where: { $0.id == newSelection }) {
+                    currCardCount = newIndex + 1
+                }
+                
                 previousCard = selection
             }
             
@@ -66,7 +72,9 @@ struct FlashcardView: View {
             HStack {
                 Button {
                     moveCard(-1)
-                    currCardCount = currCardCount - 1
+                    if (currCardCount != 1) {
+                        currCardCount = currCardCount - 1
+                    }
                 } label: {
                     Image(systemName: "chevron.left")
                         .padding()
@@ -82,7 +90,9 @@ struct FlashcardView: View {
                 
                 Button {
                     moveCard(1)
-                    currCardCount = currCardCount + 1
+                    if (currCardCount != set.cardCount) {
+                        currCardCount = currCardCount + 1
+                    }
                 } label: {
                     Image(systemName: "chevron.right")
                         .padding()
