@@ -9,9 +9,9 @@ import SwiftUI
 
 struct FlashcardView: View {
     var set: FlashcardSet
-    @State private var selection: UUID?
-    @State private var flippedCard: UUID? = nil
-    @State private var previousCard: UUID? = nil
+    @State private var selection: String?
+    @State private var flippedCard: String? = nil
+    @State private var previousCard: String? = nil
     @Environment(\.dismiss) var dismiss
     @State private var currCardCount: Int = 1
     

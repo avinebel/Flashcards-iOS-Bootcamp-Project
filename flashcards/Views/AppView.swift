@@ -7,6 +7,8 @@
 import SwiftUI
 
 struct AppView: View {
+    @EnvironmentObject private var authVM: AuthViewModel
+
     var body: some View {
         // Bottom App Bar
         TabView {

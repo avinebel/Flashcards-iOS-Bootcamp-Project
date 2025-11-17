@@ -26,14 +26,12 @@ final class SetSharingViewModel: ObservableObject {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
         var setData: [String: Any] = [
-            "id": set.id.uuidString,
             "title": set.title,
             "color": "blue", // Store as a simple string since Color isn't directly serializable
             "updatedAt": set.updatedAt,
             "isPublic": set.isPublic,
             "ownerId": userId,
             "cards": set.cards.map { [
-                "id": $0.id.uuidString,
                 "question": $0.question,
                 "answer": $0.answer,
                 "isStarred": $0.isStarred
@@ -45,7 +43,7 @@ final class SetSharingViewModel: ObservableObject {
         }
         
         do {
-            try await db.collection("flashcardSets").document(set.id.uuidString).setData(setData)
+            try await db.collection("flashcardSets").addDocument(data: setData)
         } catch {
             errorMessage = "Failed to save set: \(error.localizedDescription)"
         }
@@ -81,7 +79,6 @@ final class SetSharingViewModel: ObservableObject {
                 }
                 
                 return FlashcardSet(
-                    id: UUID(uuidString: doc.documentID) ?? UUID(),
                     title: title,
                     color: .blue, // Default to blue since we can't reliably serialize Color
                     updatedAt: updatedAt,
@@ -109,26 +106,39 @@ final class SetSharingViewModel: ObservableObject {
                 return false
             }
             
-            // Create a new set with a new ID but same content
-            if let set = publicSets.first(where: { $0.id.uuidString == doc.documentID }) {
-                // Create a new set with new ID but same content
-                let newSet = FlashcardSet(
-                    id: UUID(),  // New ID
-                    title: set.title,
-                    color: set.color,
-                    updatedAt: .now,
-                    cards: set.cards,
-                    isPublic: false,  // Make it private by default
-                    shareCode: nil,   // No share code
-                    ownerId: Auth.auth().currentUser?.uid
-                )
-                await saveSet(newSet)
-                return true
+            let data = doc.data()
+            guard let title = data["title"] as? String,
+                  let updatedAt = (data["updatedAt"] as? Timestamp)?.dateValue(),
+                  let isPublic = data["isPublic"] as? Bool,
+                  let ownerId = data["ownerId"] as? String,
+                  let cardsData = data["cards"] as? [[String: Any]] else {
+                errorMessage = "Invalid set data"
+                return false
             }
+            
+            let cards = cardsData.compactMap { cardData -> Flashcard? in
+                guard let question = cardData["question"] as? String,
+                      let answer = cardData["answer"] as? String,
+                      let isStarred = cardData["isStarred"] as? Bool else {
+                    return nil
+                }
+                return Flashcard(question: question, answer: answer, isStarred: isStarred)
+            }
+            let newSet = FlashcardSet(
+                title: title,
+                color: .blue,
+                updatedAt: .now,
+                cards: cards,
+                isPublic: false,
+                shareCode: nil,
+                ownerId: Auth.auth().currentUser?.uid
+            )
+            
+            await saveSet(newSet)
+            return true
         } catch {
             errorMessage = "Failed to import set: \(error.localizedDescription)"
             return false
         }
-        return false
     }
 }
