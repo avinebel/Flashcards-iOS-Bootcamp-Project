@@ -8,6 +8,8 @@ final class SetSharingViewModel: ObservableObject {
     @Published var publicSets: [FlashcardSet] = []
     @Published var errorMessage: String?
     @Published var isLoading = false
+    @Published var mySets: [FlashcardSet] = []
+
     
     private let db: Firestore
     
@@ -27,7 +29,7 @@ final class SetSharingViewModel: ObservableObject {
         
         var setData: [String: Any] = [
             "title": set.title,
-            "color": "blue", // Store as a simple string since Color isn't directly serializable
+            "color": set.color.toHex() ?? "#0000FF", // Store as a simple string since Color isn't directly serializable
             "updatedAt": set.updatedAt,
             "isPublic": set.isPublic,
             "ownerId": userId,
@@ -80,7 +82,7 @@ final class SetSharingViewModel: ObservableObject {
                 
                 return FlashcardSet(
                     title: title,
-                    color: .blue, // Default to blue since we can't reliably serialize Color
+                    color: Color(hex: colorString), // Default to blue since we can't reliably serialize Color
                     updatedAt: updatedAt,
                     cards: cards,
                     isPublic: isPublic,
@@ -141,4 +143,50 @@ final class SetSharingViewModel: ObservableObject {
             return false
         }
     }
+    
+    @MainActor
+    func fetchMySets() async {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let snapshot = try await db.collection("flashcardSets")
+                .whereField("ownerId", isEqualTo: userId)
+                .getDocuments()
+
+            mySets = snapshot.documents.compactMap { doc -> FlashcardSet? in
+                guard let title = doc.data()["title"] as? String,
+                      let colorString = doc.data()["color"] as? String,
+                      let updatedAt = (doc.data()["updatedAt"] as? Timestamp)?.dateValue(),
+                      let isPublic = doc.data()["isPublic"] as? Bool else {
+                    return nil
+                }
+
+                let cardsData = doc.data()["cards"] as? [[String: Any]] ?? []
+                let cards = cardsData.compactMap { cardData -> Flashcard? in
+                    guard let question = cardData["question"] as? String,
+                          let answer = cardData["answer"] as? String,
+                          let isStarred = cardData["isStarred"] as? Bool else {
+                        return nil
+                    }
+                    return Flashcard(question: question, answer: answer, isStarred: isStarred)
+                }
+
+                return FlashcardSet(
+                    title: title,
+                    color: Color(hex: colorString),
+                    updatedAt: updatedAt,
+                    cards: cards,
+                    isPublic: isPublic,
+                    shareCode: doc.data()["shareCode"] as? String,
+                    ownerId: userId
+                )
+            }
+
+        } catch {
+            errorMessage = "Failed to fetch your sets: \(error.localizedDescription)"
+        }
+    }
+
 }

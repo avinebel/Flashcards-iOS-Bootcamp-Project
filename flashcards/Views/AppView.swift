@@ -10,12 +10,14 @@ struct AppView: View {
     @EnvironmentObject private var authVM: AuthViewModel
 
     var body: some View {
+        @StateObject var setVM = SetSharingViewModel()
         // Bottom App Bar
         TabView {
             HomeView()
                 .tabItem {
                     Label("Home", systemImage: "house")
                 }
+                .environmentObject(setVM)
             ExploreView()
                 .tabItem {
                     Label("Explore", systemImage: "magnifyingglass")

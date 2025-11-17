@@ -107,7 +107,7 @@ extension Color {
 }
 
 struct SampleData {
-    static let sets: [FlashcardSet] = [
+    static var sets: [FlashcardSet] = [
         .init(
             id: "00001",
             title: "English Words",
