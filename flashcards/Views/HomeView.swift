@@ -6,74 +6,65 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 // Home View
 
 struct HomeView: View {
-    @State private var sets: [FlashcardSet] = SampleData.sets
+    @EnvironmentObject var authVM: AuthViewModel
     @EnvironmentObject var setVM: SetSharingViewModel
+    
     private let grid = [
         GridItem(.flexible(), spacing: 16),
         GridItem(.flexible(), spacing: 16),
     ]
+    
+    private var isLoading: Bool {
+        // Assume authVM has an isLoading property or check AuthState
+        if case .loading = authVM.state {
+            return true
+        }
+        return false
+    }
 
     var body: some View {
+        let mySets = authVM.getFlashcardSets()
         NavigationStack {
             HStack {
                 Spacer()
                 NavigationLink(
                     destination: CreateSetView()
-                        .environmentObject(setVM)
+                        .environmentObject(authVM)
                 ) {
                     Image(systemName: "plus.circle.fill")
                         .font(.title)
                         .foregroundStyle(.white)
                         .shadow(color: .black.opacity(0.6), radius: 3)
                 }
-                //                NavigationLink {
-                //                    CreateSetView { newSet in
-                //                        sets.insert(newSet, at: 0)   // <-- updates UI instantly
-                //                    }
-                //                } label: {
-                //                    Image(systemName: "plus.circle.fill")
-                //                        .font(.title)
-                //                        .foregroundStyle(.white)
-                //                        .shadow(color: .black.opacity(0.6), radius: 3)
-                //                }
-
             }
             .padding(.horizontal, 15)
             Group {
-                if setVM.isLoading {
-                    // Show loading indicator while fetching
-                    ProgressView()
+                if isLoading {
+                    ProgressView("Loading User Data...")
                         .padding(.top, 30)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if setVM.mySets.isEmpty {
-                    // Empty state
+                } else if authVM.getFlashcardSets().isEmpty {
                     VStack {
                         Text("No sets. Create a new set to get started!")
                             .padding(.top, 30)
                         Spacer()
                     }
                 } else {
-                    // Show sets
                     ScrollView {
                         LazyVGrid(columns: grid, spacing: 16) {
-                            ForEach(setVM.mySets) { set in
-                                NavigationLink(
-                                    destination: FlashcardView(set: set)
-                                ) {
+                            ForEach(mySets) { set in
+                                NavigationLink(destination: FlashcardView(set: set)) {
                                     SetCardView(set: set)
                                         .contextMenu {
                                             Button {
                                                 shareSet(set)
                                             } label: {
-                                                Label(
-                                                    "Share Set",
-                                                    systemImage:
-                                                        "square.and.arrow.up"
-                                                )
+                                                Label("Share Set", systemImage: "square.and.arrow.up")
                                             }
                                         }
                                 }
@@ -84,75 +75,13 @@ struct HomeView: View {
                     }
                 }
             }
-            .onAppear {
-                Task {
-                    await setVM.fetchMySets()
-                }
-            }
             .sheet(isPresented: $showingSharingOptions) {
-                if let set = selectedSet {
-                    NavigationStack {
-                        Form {
-                            Section {
-                                Toggle(
-                                    "Make Set Public",
-                                    isOn: Binding(
-                                        get: { set.isPublic },
-                                        set: { newValue in
-                                            if let index = sets.firstIndex(
-                                                where: { $0.id == set.id })
-                                            {
-                                                sets[index].isPublic = newValue
-                                                Task {
-                                                    await sharingVM.saveSet(
-                                                        sets[index]
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    )
-                                )
-
-                                if set.isPublic {
-                                    Button("Generate Share Code") {
-                                        if let index = sets.firstIndex(where: {
-                                            $0.id == set.id
-                                        }) {
-                                            sets[index].shareCode =
-                                                sharingVM.generateShareCode()
-                                            Task {
-                                                await sharingVM.saveSet(
-                                                    sets[index]
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    if let shareCode = set.shareCode {
-                                        HStack {
-                                            Text("Share Code:")
-                                            Spacer()
-                                            Text(shareCode)
-                                                .font(
-                                                    .system(
-                                                        .body,
-                                                        design: .monospaced
-                                                    )
-                                                )
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .navigationTitle("Share Set")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            Button("Done") {
-                                showingSharingOptions = false
-                            }
-                        }
-                    }
+                if let initialSet = selectedSet {
+                    SetSharingSheetContent(
+                        set: initialSet,
+                        authVM: authVM,
+                        setVM: setVM
+                    )
                     .presentationDetents([.height(250)])
                 }
             }
@@ -160,27 +89,82 @@ struct HomeView: View {
         }
     }
 
-    @StateObject private var sharingVM = SetSharingViewModel()
     @State private var selectedSet: FlashcardSet?
     @State private var showingSharingOptions = false
-
-    private func addSet() {
-        let new = FlashcardSet(title: "New Set", color: .accentColor, cards: [])
-        withAnimation(.spring) {
-            sets.insert(new, at: 0)
-        }
-    }
-
+    
     private func shareSet(_ set: FlashcardSet) {
         selectedSet = set
         showingSharingOptions = true
     }
 }
 
-#Preview {
-    let vm: SetSharingViewModel = SetSharingViewModel()
-    //    vm.mySets = [SampleData.sets.first!]
+struct SetSharingSheetContent: View {
+    @Environment(\.dismiss) var dismiss
+    
+    @State private var editableSet: FlashcardSet
+    
+    @ObservedObject var authVM: AuthViewModel
+    @ObservedObject var setVM: SetSharingViewModel
+    
+    init(set: FlashcardSet, authVM: AuthViewModel, setVM: SetSharingViewModel) {
+        self._editableSet = State(initialValue: set)
+        self.authVM = authVM
+        self.setVM = setVM
+    }
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Toggle(
+                        "Make Set Public",
+                        isOn: $editableSet.isPublic
+                    )
+                    .onChange(of: editableSet.isPublic) {
+                        saveSetChanges()
+                    }
 
-    return HomeView()
-        .environmentObject(vm)
+                    if editableSet.isPublic {
+                        Button("Generate Share Code") {
+                            editableSet.shareCode = setVM.generateShareCode()
+                            saveSetChanges()
+                        }
+
+                        // Display Share Code
+                        if let shareCode = editableSet.shareCode {
+                            HStack {
+                                Text("Share Code:")
+                                Spacer()
+                                Text(shareCode)
+                                    .font(.system(.body, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Share Set")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                Button("Done") {
+                    dismiss()
+                }
+            }
+        }
+    }
+    
+    private func saveSetChanges() {
+        Task {
+            await authVM.updateSet(set: editableSet)
+            
+            if editableSet.isPublic {
+                await setVM.saveSet(editableSet)
+            }
+        }
+    }
+}
+
+#Preview {
+    HomeView()
+        .environmentObject(SetSharingViewModel())
 }

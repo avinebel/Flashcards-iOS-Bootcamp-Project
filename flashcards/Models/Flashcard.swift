@@ -9,7 +9,7 @@ import FirebaseFirestore
 
 
 struct Flashcard: Identifiable, Hashable, Codable {
-    @DocumentID var id: String?     // Firebase generated ID
+    var id: UUID
     var question: String
     var answer: String
     var isStarred: Bool
@@ -22,7 +22,7 @@ struct Flashcard: Identifiable, Hashable, Codable {
         createdAt: Date = .now,
         updatedAt: Date = .now
     ) {
-        self.id = id
+        self.id = UUID()
         self.question = question
         self.answer = answer
         self.isStarred = isStarred
@@ -30,7 +30,7 @@ struct Flashcard: Identifiable, Hashable, Codable {
 }
 
 struct FlashcardSet: Identifiable, Hashable, Codable {
-    @DocumentID var id: String?
+    var id: UUID
     var title: String
     var colorHex: String?
     var updatedAt: Date
@@ -42,7 +42,7 @@ struct FlashcardSet: Identifiable, Hashable, Codable {
     var cardCount: Int { cards.count }
 
     var color: Color {
-        Color(hex: colorHex ?? "#000000")
+        Color(hex: colorHex ?? "000000")
     }
     
     init(
@@ -55,7 +55,7 @@ struct FlashcardSet: Identifiable, Hashable, Codable {
         shareCode: String? = nil,
         ownerId: String? = nil
     ) {
-        self.id = id
+        self.id = UUID()
         self.title = title
         self.colorHex = color.toHex()
         self.updatedAt = updatedAt

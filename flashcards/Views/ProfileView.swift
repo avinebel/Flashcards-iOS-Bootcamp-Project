@@ -28,7 +28,7 @@ struct ProfileView: View {
                         case .signedOut:
                             LoginView(authVM: authVM)
                         case .signedIn:
-                            if let user = authVM.currentUser {
+                        if let user = authVM.getCurrentUser() {
                                 UserProfileCard(authVM: authVM, user: user)
                                 VStack(alignment: .leading, spacing: 16) {
                                     Text("My Sets")
@@ -133,13 +133,16 @@ struct LoginView: View {
     @ObservedObject var authVM: AuthViewModel
     @State private var isSecure: Bool = true
     
+    @State var email: String = ""
+    @State var password: String = ""
+    
     var body: some View {
         let isAuthenticationProcessing: Bool = {
-            switch authVM.state {
-            case .loading:
-                return true
-            default:
-                return false
+            switch authVM.getAuthState() {
+                case .loading:
+                    return true
+                default:
+                    return false
             }
         }()
         
@@ -155,7 +158,7 @@ struct LoginView: View {
                 .font(.title2.bold())
             
             VStack(spacing: 12) {
-                TextField("Email", text: $authVM.email)
+                TextField("Email", text: $email)
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
@@ -166,9 +169,9 @@ struct LoginView: View {
                 HStack {
                     Group {
                         if isSecure {
-                            SecureField("Password", text: $authVM.password)
+                            SecureField("Password", text: $password)
                         } else {
-                            TextField("Password", text: $authVM.password)
+                            TextField("Password", text: $password)
                         }
                     }
                     Button {
@@ -183,7 +186,7 @@ struct LoginView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 
                 Button {
-                    Task { await authVM.signIn() }
+                    Task { await authVM.signIn(email: email, password: password) }
                 } label: {
                     HStack {
                         if isAuthenticationProcessing {
@@ -196,7 +199,7 @@ struct LoginView: View {
                 .disabled(isAuthenticationProcessing)
                 
                 Button {
-                    Task { await authVM.createAccount() }
+                    Task { await authVM.createAccount(email: email, password: password) }
                 } label: {
                     Text("Create New Account").frame(maxWidth: .infinity)
                 }
@@ -219,6 +222,7 @@ struct LoginView: View {
 }
 
 #Preview {
+    var authVM = AuthViewModel()
     ProfileView()
-        .environmentObject(AuthViewModel())
+        .environmentObject(authVM)
 }

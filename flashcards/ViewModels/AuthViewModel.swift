@@ -21,11 +21,6 @@ enum AuthState {
 final class AuthViewModel: ObservableObject {
     @Published var state: AuthState = .loading
     @Published var currentUser: AppUser?
-    
-    // Use on Sign In
-    @Published var email = ""
-    @Published var password = ""
-    
     @Published var errorMessage: String?
     
     private var authStateHandle: AuthStateDidChangeListenerHandle?
@@ -49,8 +44,6 @@ final class AuthViewModel: ObservableObject {
                 self.state = .signedOut
                 // Clear all user-specific data
                 self.currentUser = nil
-                self.email = ""
-                self.password = ""
             }
         }
     }
@@ -59,14 +52,22 @@ final class AuthViewModel: ObservableObject {
     deinit {
         if let h = authStateHandle { Auth.auth().removeStateDidChangeListener(h) }
     }
+    
+    func getAuthState() -> AuthState {
+        return state
+    }
+    
+    func getCurrentUser() -> AppUser? {
+        return currentUser
+    }
 
-    func signIn() async {
+    func signIn(email: String, password: String) async {
         guard !email.isEmpty, !password.isEmpty else {
             errorMessage = "Enter email and password."
             return
         }
         await runAuthOperation {
-            try await Auth.auth().signIn(withEmail: self.email, password: self.password)
+            try await Auth.auth().signIn(withEmail: email, password: password)
         }
     }
     
@@ -75,22 +76,42 @@ final class AuthViewModel: ObservableObject {
             let document = try await db.collection("users").document(uid).getDocument()
             self.currentUser = try document.data(as: AppUser.self)
         } catch {
-            print("Error fetching user data: \(error.localizedDescription)")
+            print("Error fetching user data: \(error.localizedDescription) \nTry create new account.")
+            signOut()
+        }
+    }
+    
+    func uploadCurrentUser() async {
+        guard let user = currentUser,
+              case .signedIn(let uid) = state else {
+            print("Error: Cannot upload user data. User is not signed in or currentUser is nil.")
+            return
+        }
+
+        do {
+            try db.collection("users")
+                .document(uid)
+                .setData(from: user)
+
+            print("AuthViewModel: User document successfully uploaded/updated for UID: \(uid)")
+        } catch {
+            errorMessage = "Failed to upload user data: \(error.localizedDescription)"
+            print("Error uploading user data: \(error.localizedDescription)")
         }
     }
 
-    func createAccount() async {
+    func createAccount(email: String, password: String) async {
         guard !email.isEmpty, !password.isEmpty else {
             errorMessage = "Enter email and password."
             return
         }
         await runAuthOperation {
-            let result = try await Auth.auth().createUser(withEmail: self.email, password: self.password)
+            let result = try await Auth.auth().createUser(withEmail: email, password: password)
             
             // Create Firestore user document
             try await self.createUserDocument(
                 uid: result.user.uid,
-                email: self.email
+                email: email
             )
         }
     }
@@ -140,4 +161,34 @@ final class AuthViewModel: ObservableObject {
         
         print("User document created for UID: \(uid)")
     }
+    
+    // ** VM for accessing AppUser **
+    
+    func getFlashcardSets() -> [FlashcardSet] {
+        return currentUser?.flashcardSets ?? []
+    }
+    
+    func addNewSet(newSet: FlashcardSet) {
+        currentUser?.flashcardSets.append(newSet)
+        
+        Task {
+            await uploadCurrentUser()
+        }
+    }
+    
+    func updateSet(set updatedSet: FlashcardSet) async {
+        guard case .signedIn = state else {
+            print("AuthViewModel: Cannot update set. User is not signed in.")
+            return
+        }
+        guard let index = currentUser?.flashcardSets.firstIndex(where: { $0.id == updatedSet.id }) else {
+            print("AuthViewModel: Set with ID \(updatedSet.id) not found in current user's sets.")
+            return
+        }
+
+        currentUser?.flashcardSets[index] = updatedSet
+
+        await uploadCurrentUser()
+    }
+    
 }
