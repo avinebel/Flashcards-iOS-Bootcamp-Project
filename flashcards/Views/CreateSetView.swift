@@ -17,7 +17,7 @@ struct CreateSetView: View {
     
     @State var title: String = ""
     @State var isPublic: Bool = false
-    @State var cards: [Flashcard] = []
+    @State var cards: [Flashcard] = [Flashcard(question: "", answer: "")]
     @State var selectedColor: Color = .blue
     @State var colorPickerShow: Bool = false
     
