@@ -13,13 +13,13 @@ struct CreateSetView: View {
     
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var setVM: SetSharingViewModel
+    @EnvironmentObject var authVM: AuthViewModel
     
-    @State var setName: String = "Untitled Set"
-    @State private var selectedColor: Color = .blue
+    @State var title: String = ""
+    @State var isPublic: Bool = false
+    @State var cards: [Flashcard] = []
+    @State var selectedColor: Color = .blue
     @State var colorPickerShow: Bool = false
-    @State var term: String = ""
-    @State var definition: String = ""
-    @State var cards: [Flashcard] = [Flashcard(id: UUID(), question: "", answer: "", isStarred: false)]
     
     let palette: [Color] = [
             .red, .orange, .yellow, .green, .blue, .purple,
@@ -34,7 +34,7 @@ struct CreateSetView: View {
         VStack {
             HStack {
                 Spacer()
-                TextField("Untitled Set", text: $setName)
+                TextField("Untitled Set", text: $title)
                     .font(.title)
                 Spacer()
                 Button {
@@ -86,7 +86,7 @@ struct CreateSetView: View {
                     var t = Transaction()
                     t.disablesAnimations = true
                     withTransaction(t) {
-                        $cards.wrappedValue.append(Flashcard(id: UUID(), question: "", answer: "", isStarred: false))
+                        cards.append(Flashcard(question: "", answer: ""))
                     }
                 }
             }
@@ -122,8 +122,17 @@ struct CreateSetView: View {
     }
     
     func saveSet() async {
-        let actualCards = cards.filter { !$0.question.isEmpty || !$0.answer.isEmpty }
-        let newSet : FlashcardSet = FlashcardSet(id: UUID(), title: setName, color: selectedColor, updatedAt: Date(), cards: actualCards, isPublic: true, shareCode: nil, ownerId: Auth.auth().currentUser?.uid)
+        let validCards = cards.filter {
+            !$0.question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !$0.answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        let newSet = FlashcardSet(
+            title: title.isEmpty ? "Untitled Set" : title,
+            color: selectedColor,
+            cards: validCards,
+            isPublic: isPublic
+        )
+        authVM.addNewSet(newSet: newSet)
         onSave(newSet)
         await setVM.saveSet(newSet)
         

@@ -7,6 +7,8 @@
 import SwiftUI
 
 struct AppView: View {
+    @EnvironmentObject private var authVM: AuthViewModel
+
     var body: some View {
         @StateObject var setVM = SetSharingViewModel()
         // Bottom App Bar

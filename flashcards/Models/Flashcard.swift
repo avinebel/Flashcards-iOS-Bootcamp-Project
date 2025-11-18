@@ -5,32 +5,34 @@
 //  Created by Jinseok Heo on 11/2/25.
 //
 import SwiftUI
+import FirebaseFirestore
 
-struct Flashcard: Identifiable, Hashable {
-    let id: UUID
+
+struct Flashcard: Identifiable, Hashable, Codable {
+    var id: UUID
     var question: String
     var answer: String
     var isStarred: Bool
     
     init(
-        id: UUID = UUID(),
+        id: String? = nil,
         question: String,
         answer: String,
         isStarred: Bool = false,
         createdAt: Date = .now,
         updatedAt: Date = .now
     ) {
-        self.id = id
+        self.id = UUID()
         self.question = question
         self.answer = answer
         self.isStarred = isStarred
     }
 }
 
-struct FlashcardSet: Identifiable, Hashable {
-    let id: UUID
+struct FlashcardSet: Identifiable, Hashable, Codable {
+    var id: UUID
     var title: String
-    var color: Color
+    var colorHex: String?
     var updatedAt: Date
     var cards: [Flashcard]
     var isPublic: Bool
@@ -39,17 +41,23 @@ struct FlashcardSet: Identifiable, Hashable {
     
     var cardCount: Int { cards.count }
 
-    init(id: UUID = UUID(), 
-         title: String, 
-         color: Color, 
-         updatedAt: Date = .now, 
-         cards: [Flashcard] = [],
-         isPublic: Bool = false,
-         shareCode: String? = nil,
-         ownerId: String? = nil) {
-        self.id = id
+    var color: Color {
+        Color(hex: colorHex ?? "000000")
+    }
+    
+    init(
+        id: String? = nil,
+        title: String,
+        color: Color,
+        updatedAt: Date = .now,
+        cards: [Flashcard] = [],
+        isPublic: Bool = false,
+        shareCode: String? = nil,
+        ownerId: String? = nil
+    ) {
+        self.id = UUID()
         self.title = title
-        self.color = color
+        self.colorHex = color.toHex()
         self.updatedAt = updatedAt
         self.cards = cards
         self.isPublic = isPublic
@@ -58,9 +66,50 @@ struct FlashcardSet: Identifiable, Hashable {
     }
 }
 
+extension Color {
+    func toHex() -> String? {
+        let uiColor = UIColor(self)
+        
+        guard let components = uiColor.cgColor.components,
+              components.count >= 3 else {
+            return nil
+        }
+        
+        let r = components[0]
+        let g = components[1]
+        let b = components[2]
+        
+        return String(format: "#%02X%02X%02X",
+                     Int(r * 255),
+                     Int(g * 255),
+                     Int(b * 255))
+    }
+    
+    init(hex: String) {
+        let cleaned = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        
+        Scanner(string: cleaned).scanHexInt64(&int)
+        
+        let r, g, b: Double
+        switch cleaned.count {
+        case 6:
+            r = Double((int >> 16) & 0xFF) / 255.0
+            g = Double((int >> 8) & 0xFF) / 255.0
+            b = Double(int & 0xFF) / 255.0
+            
+            self.init(red: r, green: g, blue: b)
+        
+        default:
+            self = .white
+        }
+    }
+}
+
 struct SampleData {
     static var sets: [FlashcardSet] = [
         .init(
+            id: "00001",
             title: "English Words",
             color: .blue,
             updatedAt: .now.addingTimeInterval(-3600*24*1),
@@ -71,6 +120,7 @@ struct SampleData {
             ]
         ),
         .init(
+            id: "00002",
             title: "Computer Science",
             color: .green,
             updatedAt: .now.addingTimeInterval(-3600*24*3),
@@ -81,6 +131,7 @@ struct SampleData {
             ]
         ),
         .init(
+            id: "00003",
             title: "SwiftUI",
             color: .orange,
             updatedAt: .now.addingTimeInterval(-3600*24*5),
@@ -91,6 +142,7 @@ struct SampleData {
             ]
         ),
         .init(
+            id: "00004",
             title: "New Sets",
             color: .gray,
             updatedAt: .now.addingTimeInterval(-3600*5),
@@ -100,27 +152,3 @@ struct SampleData {
         )
     ]
 }
-
-extension Color {
-    // Convert Color to hex string
-    var hex: String? {
-        guard let components = UIColor(self).cgColor.components else { return nil }
-        let r = Int(components[0] * 255)
-        let g = Int(components[1] * 255)
-        let b = Int(components[2] * 255)
-        return String(format: "#%02X%02X%02X", r, g, b)
-    }
-
-    // Create Color from hex string
-    init?(hex: String) {
-        var hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        guard hex.count == 6 else { return nil }
-        var int = UInt64()
-        Scanner(string: hex).scanHexInt64(&int)
-        let r = Double((int >> 16) & 0xFF) / 255
-        let g = Double((int >> 8) & 0xFF) / 255
-        let b = Double(int & 0xFF) / 255
-        self.init(red: r, green: g, blue: b)
-    }
-}
-
