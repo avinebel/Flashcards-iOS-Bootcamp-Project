@@ -23,8 +23,11 @@ final class AuthViewModel: ObservableObject {
     @Published var currentUser: AppUser?
     @Published var errorMessage: String?
     
+    @Published private var localDataUpdateTrigger: Bool = false
+    
     private var authStateHandle: AuthStateDidChangeListenerHandle?
     private let db = Firestore.firestore()
+    private let localSetsKey = "LocalFlashcardSets"
     
     init() {
         // Start by checking the initial session state
@@ -162,33 +165,83 @@ final class AuthViewModel: ObservableObject {
         print("User document created for UID: \(uid)")
     }
     
+    // ** If User not Signed In **
+    
+    private func loadLocalFlashcardSets() -> [FlashcardSet] {
+        guard let savedData = UserDefaults.standard.data(forKey: localSetsKey) else {
+            return []
+        }
+        do {
+            let sets = try JSONDecoder().decode([FlashcardSet].self, from: savedData)
+            return sets
+        } catch {
+            print("Error decoding local flashcard sets: \(error)")
+            return []
+        }
+    }
+    
+    private func saveLocalFlashcardSets(sets: [FlashcardSet]) {
+        do {
+            let encodedData = try JSONEncoder().encode(sets)
+            UserDefaults.standard.set(encodedData, forKey: localSetsKey)
+            print("AuthViewModel: Local sets saved successfully.")
+        } catch {
+            print("Error encoding and saving local flashcard sets: \(error)")
+        }
+    }
+    
     // ** VM for accessing AppUser **
+    var combinedFlashcardSets: [FlashcardSet] {
+        _ = localDataUpdateTrigger
+        switch state {
+            case .signedIn:
+                return currentUser?.flashcardSets ?? []
+            case .signedOut, .loading:
+                return loadLocalFlashcardSets()
+        }
+    }
     
     func getFlashcardSets() -> [FlashcardSet] {
-        return currentUser?.flashcardSets ?? []
+        return combinedFlashcardSets
+        
+        
     }
     
     func addNewSet(newSet: FlashcardSet) {
-        currentUser?.flashcardSets.append(newSet)
-        
-        Task {
-            await uploadCurrentUser()
+        switch state {
+            case .signedIn:
+                currentUser?.flashcardSets.append(newSet)
+                Task {
+                    await uploadCurrentUser()
+                }
+            case .signedOut, .loading:
+                var existingSets = loadLocalFlashcardSets()
+                existingSets.append(newSet)
+                saveLocalFlashcardSets(sets: existingSets)
+                localDataUpdateTrigger.toggle()
         }
     }
     
     func updateSet(set updatedSet: FlashcardSet) async {
-        guard case .signedIn = state else {
-            print("AuthViewModel: Cannot update set. User is not signed in.")
-            return
+        switch state {
+            case .signedIn:
+                guard let index = currentUser?.flashcardSets.firstIndex(where: { $0.id == updatedSet.id }) else {
+                    print("AuthViewModel: Set with ID \(updatedSet.id) not found in current user's remote sets.")
+                    return
+                }
+                currentUser?.flashcardSets[index] = updatedSet
+                await uploadCurrentUser()
+            
+            case .signedOut, .loading:
+                var existingSets = loadLocalFlashcardSets()
+                if let index = existingSets.firstIndex(where: { $0.id == updatedSet.id }) {
+                    existingSets[index] = updatedSet
+                    saveLocalFlashcardSets(sets: existingSets)
+                    localDataUpdateTrigger.toggle()
+                } else {
+                    print("AuthViewModel: Set with ID \(updatedSet.id) not found in local sets.")
+                }
         }
-        guard let index = currentUser?.flashcardSets.firstIndex(where: { $0.id == updatedSet.id }) else {
-            print("AuthViewModel: Set with ID \(updatedSet.id) not found in current user's sets.")
-            return
-        }
-
-        currentUser?.flashcardSets[index] = updatedSet
-
-        await uploadCurrentUser()
     }
     
 }

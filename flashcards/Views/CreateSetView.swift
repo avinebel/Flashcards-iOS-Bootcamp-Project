@@ -133,9 +133,9 @@ struct CreateSetView: View {
             isPublic: isPublic
         )
         authVM.addNewSet(newSet: newSet)
-        onSave(newSet)
-        await setVM.saveSet(newSet)
-        
+        if case .signedIn = authVM.state, newSet.isPublic {
+            await setVM.saveSet(newSet)
+        }
     }
 }
 

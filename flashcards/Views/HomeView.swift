@@ -26,6 +26,10 @@ struct HomeView: View {
         }
         return false
     }
+    
+    @State private var selectedSet: FlashcardSet?
+    @State private var showingSharingOptions = false
+    @State private var showingLoginAlert = false
 
     var body: some View {
         let mySets = authVM.getFlashcardSets()
@@ -48,7 +52,7 @@ struct HomeView: View {
                     ProgressView("Loading User Data...")
                         .padding(.top, 30)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if authVM.getFlashcardSets().isEmpty {
+                } else if mySets.isEmpty {
                     VStack {
                         Text("No sets. Create a new set to get started!")
                             .padding(.top, 30)
@@ -85,16 +89,22 @@ struct HomeView: View {
                     .presentationDetents([.height(250)])
                 }
             }
-
+            // Alert for logged out users attempting to share cloud features
+            .alert("Login Required", isPresented: $showingLoginAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("You must be logged in to share or make sets public, as this requires cloud storage.")
+            }
         }
     }
 
-    @State private var selectedSet: FlashcardSet?
-    @State private var showingSharingOptions = false
-    
     private func shareSet(_ set: FlashcardSet) {
-        selectedSet = set
-        showingSharingOptions = true
+        if case .signedIn = authVM.state {
+            selectedSet = set
+            showingSharingOptions = true
+        } else {
+            showingLoginAlert = true
+        }
     }
 }
 
@@ -112,34 +122,54 @@ struct SetSharingSheetContent: View {
         self.setVM = setVM
     }
     
+    private var isSharingEnabled: Bool {
+        if case .signedIn = authVM.state {
+            return true
+        }
+        return false
+    }
+    
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle(
-                        "Make Set Public",
-                        isOn: $editableSet.isPublic
-                    )
-                    .onChange(of: editableSet.isPublic) {
-                        saveSetChanges()
-                    }
-
-                    if editableSet.isPublic {
-                        Button("Generate Share Code") {
-                            editableSet.shareCode = setVM.generateShareCode()
+                    if isSharingEnabled {
+                        // --- Controls visible and enabled when signed in ---
+                        Toggle(
+                            "Make Set Public",
+                            isOn: $editableSet.isPublic
+                        )
+                        .onChange(of: editableSet.isPublic) {
                             saveSetChanges()
                         }
 
-                        // Display Share Code
-                        if let shareCode = editableSet.shareCode {
-                            HStack {
-                                Text("Share Code:")
-                                Spacer()
-                                Text(shareCode)
-                                    .font(.system(.body, design: .monospaced))
-                                    .foregroundStyle(.secondary)
+                        if editableSet.isPublic {
+                            Button("Generate Share Code") {
+                                editableSet.shareCode = setVM.generateShareCode()
+                                saveSetChanges()
+                            }
+
+                            // Display Share Code
+                            if let shareCode = editableSet.shareCode {
+                                HStack {
+                                    Text("Share Code:")
+                                    Spacer()
+                                    Text(shareCode)
+                                        .font(.system(.body, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
+                    } else {
+                        // --- Message when signed out ---
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Sharing Not Available")
+                                .font(.headline)
+                            Text("Please sign in to link this set to your account and enable public sharing features.")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.vertical, 10)
                     }
                 }
             }
@@ -166,5 +196,6 @@ struct SetSharingSheetContent: View {
 
 #Preview {
     HomeView()
+        .environmentObject(AuthViewModel())
         .environmentObject(SetSharingViewModel())
 }
