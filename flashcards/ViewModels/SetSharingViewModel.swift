@@ -110,9 +110,9 @@ final class SetSharingViewModel: ObservableObject {
             
             let data = doc.data()
             guard let title = data["title"] as? String,
-                  let updatedAt = (data["updatedAt"] as? Timestamp)?.dateValue(),
-                  let isPublic = data["isPublic"] as? Bool,
-                  let ownerId = data["ownerId"] as? String,
+                  let _ = (data["updatedAt"] as? Timestamp)?.dateValue(),
+                  let _ = data["isPublic"] as? Bool,
+                  let _ = data["ownerId"] as? String,
                   let cardsData = data["cards"] as? [[String: Any]] else {
                 errorMessage = "Invalid set data"
                 return false

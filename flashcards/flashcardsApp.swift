@@ -23,12 +23,14 @@ struct flashcardsApp: App {
     }
 
     @StateObject private var authVM = AuthViewModel()
+    @StateObject private var setVM = SetSharingViewModel()
 
     // Restore normal app entry without debug UI
     var body: some Scene {
         WindowGroup {
             AppView()
                 .environmentObject(authVM)
+                .environmentObject(setVM)
         }
     }
 }

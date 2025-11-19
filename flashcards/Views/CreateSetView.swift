@@ -71,7 +71,7 @@ struct CreateSetView: View {
                 ForEach($cards) { $card in
                     ZStack {
                         RoundedRectangle(cornerRadius: 10)
-                            .frame(width: .infinity, height: 60)
+                            .frame(height: 60)
                             .foregroundStyle(.white)
                         HStack {
                             TextField("Term", text: $card.question)
@@ -133,9 +133,9 @@ struct CreateSetView: View {
             isPublic: isPublic
         )
         authVM.addNewSet(newSet: newSet)
-        onSave(newSet)
-        await setVM.saveSet(newSet)
-        
+        if case .signedIn = authVM.state, newSet.isPublic {
+            await setVM.saveSet(newSet)
+        }
     }
 }
 
