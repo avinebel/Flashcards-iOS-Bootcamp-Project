@@ -30,6 +30,10 @@ struct HomeView: View {
     @State private var selectedSet: FlashcardSet?
     @State private var showingSharingOptions = false
     @State private var showingLoginAlert = false
+    
+    
+    @State private var selectedSetToDelete: FlashcardSet?
+    @State private var showingDeleteConfirmation = false
 
     var body: some View {
         let mySets = authVM.getFlashcardSets()
@@ -70,6 +74,12 @@ struct HomeView: View {
                                             } label: {
                                                 Label("Share Set", systemImage: "square.and.arrow.up")
                                             }
+                                            Button(role: .destructive) {
+                                                selectedSetToDelete = set
+                                                showingDeleteConfirmation = true
+                                            } label: {
+                                                Label("Delete Set", systemImage: "trash")
+                                            }
                                         }
                                 }
                                 .buttonStyle(.plain)
@@ -94,6 +104,17 @@ struct HomeView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text("You must be logged in to share or make sets public, as this requires cloud storage.")
+            }
+            // --- Confirmation Dialog for Deletion ---
+            .confirmationDialog("Delete Set?", isPresented: $showingDeleteConfirmation, presenting: selectedSetToDelete) { set in
+                Button("Delete '\(set.title)'", role: .destructive) {
+                    Task {
+                        await authVM.deleteSet(setID: set.id.uuidString)
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: { set in
+                Text("Are you sure you want to delete the flashcard set titled '\(set.title)'? This action cannot be undone.")
             }
         }
     }

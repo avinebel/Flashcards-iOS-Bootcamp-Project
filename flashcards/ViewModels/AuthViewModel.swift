@@ -75,13 +75,57 @@ final class AuthViewModel: ObservableObject {
     }
     
     func fetchCurrentUser(uid: String) async {
+        guard let firebaseUser = Auth.auth().currentUser, firebaseUser.uid == uid else {
+            print("AuthViewModel: Firebase user object not available during fetch.")
+            signOut()
+            return
+        }
         do {
             let document = try await db.collection("users").document(uid).getDocument()
-            self.currentUser = try document.data(as: AppUser.self)
+            
+            if document.exists {
+                self.currentUser = try document.data(as: AppUser.self)
+            } else {
+                let email = firebaseUser.email ?? "no-email-available"
+                try await self.createUserDocument(uid: uid, email: email)
+                print("AuthViewModel: AppUser document auto-created successfully.")
+            }
+
+            await migrateLocalSetsToRemote()
         } catch {
-            print("Error fetching user data: \(error.localizedDescription) \nTry create new account.")
+            print("Critical Error fetching/creating user data: \(error.localizedDescription) \nForcing sign out as data cannot be secured.")
             signOut()
         }
+    }
+    
+    private func migrateLocalSetsToRemote() async {
+        let localSets = loadLocalFlashcardSets()
+        guard !localSets.isEmpty else {
+            print("AuthViewModel: No local sets to migrate.")
+            return
+        }
+        guard case .signedIn = state, var user = currentUser else {
+            print("AuthViewModel: Migration failed. User not properly signed in or currentUser is nil.")
+            return
+        }
+        
+        let remoteSetIDs = Set(user.flashcardSets.map { $0.id })
+        let uniqueLocalSets = localSets.filter { localSet in
+            return !remoteSetIDs.contains(localSet.id)
+        }
+        
+        guard !uniqueLocalSets.isEmpty else {
+            UserDefaults.standard.removeObject(forKey: localSetsKey)
+            localDataUpdateTrigger.toggle()
+            return
+        }
+        
+        user.flashcardSets.append(contentsOf: uniqueLocalSets)
+        self.currentUser = user
+        
+        await uploadCurrentUser()
+        UserDefaults.standard.removeObject(forKey: localSetsKey)
+        localDataUpdateTrigger.toggle()
     }
     
     func uploadCurrentUser() async {
@@ -121,6 +165,10 @@ final class AuthViewModel: ObservableObject {
 
     func signOut() {
         errorMessage = nil
+        // Save in local before sign out
+        if case .signedIn = state, let setsToSave = currentUser?.flashcardSets, !setsToSave.isEmpty {
+            saveLocalFlashcardSets(sets: setsToSave)
+        }
         do {
             try Auth.auth().signOut()
         } catch {
@@ -151,10 +199,14 @@ final class AuthViewModel: ObservableObject {
     }
     
     private func createUserDocument(uid: String, email: String) async throws {
-        let user = AppUser(
+        var user = AppUser(
             id: uid,
             email: email
         )
+        let localSets = loadLocalFlashcardSets()
+        if !localSets.isEmpty {
+            user.flashcardSets.append(contentsOf: localSets)
+        }
         
         try db.collection("users")
             .document(uid)
@@ -162,7 +214,26 @@ final class AuthViewModel: ObservableObject {
         
         self.currentUser = user
         
+        if !localSets.isEmpty {
+             UserDefaults.standard.removeObject(forKey: localSetsKey)
+             localDataUpdateTrigger.toggle()
+        }
+        
         print("User document created for UID: \(uid)")
+    }
+    
+    func deleteSet(setID: String) async {
+        switch state {
+        case .signedIn:
+            currentUser?.flashcardSets.removeAll { $0.id.uuidString == setID }
+            await uploadCurrentUser()
+            
+        case .signedOut, .loading:
+            var existingSets = loadLocalFlashcardSets()
+            existingSets.removeAll { $0.id.uuidString == setID }
+            saveLocalFlashcardSets(sets: existingSets)
+            localDataUpdateTrigger.toggle()
+        }
     }
     
     // ** If User not Signed In **
