@@ -58,8 +58,8 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if mySets.isEmpty {
                     VStack {
-                        Text("No sets. Create a new set to get started!")
-                            .padding(.top, 30)
+                        Spacer()
+                        EmptySetView()
                         Spacer()
                     }
                 } else {
