@@ -46,7 +46,7 @@ struct FlashcardSet: Identifiable, Hashable, Codable {
     }
     
     init(
-        id: String? = nil,
+        id: UUID,
         title: String,
         color: Color,
         updatedAt: Date = .now,
@@ -109,7 +109,7 @@ extension Color {
 struct SampleData {
     static var sets: [FlashcardSet] = [
         .init(
-            id: "00001",
+            id: UUID(),
             title: "English Words",
             color: .blue,
             updatedAt: .now.addingTimeInterval(-3600*24*1),
@@ -120,7 +120,7 @@ struct SampleData {
             ]
         ),
         .init(
-            id: "00002",
+            id: UUID(),
             title: "Computer Science",
             color: .green,
             updatedAt: .now.addingTimeInterval(-3600*24*3),
@@ -131,7 +131,7 @@ struct SampleData {
             ]
         ),
         .init(
-            id: "00003",
+            id: UUID(),
             title: "SwiftUI",
             color: .orange,
             updatedAt: .now.addingTimeInterval(-3600*24*5),
@@ -142,7 +142,7 @@ struct SampleData {
             ]
         ),
         .init(
-            id: "00004",
+            id: UUID(),
             title: "New Sets",
             color: .gray,
             updatedAt: .now.addingTimeInterval(-3600*5),

@@ -9,8 +9,8 @@ final class SetSharingViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isLoading = false
     @Published var mySets: [FlashcardSet] = []
-
     
+    let PUBLICSET_DOC = "publicSets"
     private let db: Firestore
     
     init() {
@@ -25,29 +25,12 @@ final class SetSharingViewModel: ObservableObject {
     
     // Save a set to Firestore
     func saveSet(_ set: FlashcardSet) async {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-        
-        var setData: [String: Any] = [
-            "title": set.title,
-            "color": set.color.toHex() ?? "#0000FF", // Store as a simple string since Color isn't directly serializable
-            "updatedAt": set.updatedAt,
-            "isPublic": set.isPublic,
-            "ownerId": userId,
-            "cards": set.cards.map { [
-                "question": $0.question,
-                "answer": $0.answer,
-                "isStarred": $0.isStarred
-            ]}
-        ]
-        
-        if let shareCode = set.shareCode {
-            setData["shareCode"] = shareCode
-        }
-        
+        let docRef = db.collection(PUBLICSET_DOC).document(set.id.uuidString)
         do {
-            try await db.collection("flashcardSets").addDocument(data: setData)
+            try docRef.setData(from: set)   // FlashcardSet is Codable, so we can directly pass it into Firebase
         } catch {
             errorMessage = "Failed to save set: \(error.localizedDescription)"
+            print("SetSharingViewModel: Error saving set \(set.id.uuidString): \(error.localizedDescription)")
         }
     }
     
@@ -57,93 +40,69 @@ final class SetSharingViewModel: ObservableObject {
         defer { isLoading = false }
         
         do {
-            let snapshot = try await db.collection("flashcardSets")
+            let snapshot = try await db.collection(PUBLICSET_DOC)
                 .whereField("isPublic", isEqualTo: true)
                 .getDocuments()
             
-            publicSets = snapshot.documents.compactMap { doc -> FlashcardSet? in
-                guard let title = doc.data()["title"] as? String,
-                      let colorString = doc.data()["color"] as? String,
-                      let updatedAt = (doc.data()["updatedAt"] as? Timestamp)?.dateValue(),
-                      let isPublic = doc.data()["isPublic"] as? Bool,
-                      let ownerId = doc.data()["ownerId"] as? String,
-                      let cardsData = doc.data()["cards"] as? [[String: Any]] else {
+            self.publicSets = snapshot.documents.compactMap { doc -> FlashcardSet? in
+                do {
+                    return try doc.data(as: FlashcardSet.self)
+                } catch {
+                    print("Error decoding public set \(doc.documentID): \(error.localizedDescription)")
                     return nil
                 }
-                
-                let cards = cardsData.compactMap { cardData -> Flashcard? in
-                    guard let question = cardData["question"] as? String,
-                          let answer = cardData["answer"] as? String,
-                          let isStarred = cardData["isStarred"] as? Bool else {
-                        return nil
-                    }
-                    return Flashcard(question: question, answer: answer, isStarred: isStarred)
-                }
-                
-                return FlashcardSet(
-                    title: title,
-                    color: Color(hex: colorString), // Default to blue since we can't reliably serialize Color
-                    updatedAt: updatedAt,
-                    cards: cards,
-                    isPublic: isPublic,
-                    shareCode: doc.data()["shareCode"] as? String,
-                    ownerId: ownerId
-                )
             }
         } catch {
             errorMessage = "Failed to fetch public sets: \(error.localizedDescription)"
+            print("SetSharingViewModel: Error fetching public sets: \(error.localizedDescription)")
         }
     }
     
     // Import a set using share code
-    func importSet(withCode code: String) async -> Bool {
+    func importSet(withCode code: String) async -> FlashcardSet? {
         do {
-            let snapshot = try await db.collection("flashcardSets")
+            let snapshot = try await db.collection(PUBLICSET_DOC)
                 .whereField("shareCode", isEqualTo: code)
                 .limit(to: 1)
                 .getDocuments()
             
             guard let doc = snapshot.documents.first else {
                 errorMessage = "No set found with this code"
-                return false
+                return nil
             }
             
-            let data = doc.data()
-            guard let title = data["title"] as? String,
-                  let _ = (data["updatedAt"] as? Timestamp)?.dateValue(),
-                  let _ = data["isPublic"] as? Bool,
-                  let _ = data["ownerId"] as? String,
-                  let cardsData = data["cards"] as? [[String: Any]] else {
-                errorMessage = "Invalid set data"
-                return false
-            }
+            let sharedSet = try doc.data(as: FlashcardSet.self)
             
-            let cards = cardsData.compactMap { cardData -> Flashcard? in
-                guard let question = cardData["question"] as? String,
-                      let answer = cardData["answer"] as? String,
-                      let isStarred = cardData["isStarred"] as? Bool else {
-                    return nil
-                }
-                return Flashcard(question: question, answer: answer, isStarred: isStarred)
-            }
             let newSet = FlashcardSet(
-                title: title,
-                color: .blue,
+                id: UUID(),
+                title: sharedSet.title,
+                color: sharedSet.color,
                 updatedAt: .now,
-                cards: cards,
+                cards: sharedSet.cards,
                 isPublic: false,
                 shareCode: nil,
                 ownerId: Auth.auth().currentUser?.uid
             )
+            return newSet
             
-            await saveSet(newSet)
-            return true
         } catch {
             errorMessage = "Failed to import set: \(error.localizedDescription)"
-            return false
+            print("SetSharingViewModel: Error importing set: \(error.localizedDescription)")
+            return nil
         }
     }
     
+    func deletePublicSet(setID: String) async {
+        let docRef = db.collection(PUBLICSET_DOC).document(setID)
+        
+        do {
+            try await docRef.delete()
+            publicSets.removeAll { $0.id.uuidString == setID }
+        } catch {
+            print("SetSharingViewModel: Error deleting public set \(setID): \(error.localizedDescription)")
+        }
+    }
+
     @MainActor
     func fetchMySets() async {
         guard let userId = Auth.auth().currentUser?.uid else { return }
@@ -151,41 +110,22 @@ final class SetSharingViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let snapshot = try await db.collection("flashcardSets")
+            let snapshot = try await db.collection(PUBLICSET_DOC)
                 .whereField("ownerId", isEqualTo: userId)
                 .getDocuments()
 
             mySets = snapshot.documents.compactMap { doc -> FlashcardSet? in
-                guard let title = doc.data()["title"] as? String,
-                      let colorString = doc.data()["color"] as? String,
-                      let updatedAt = (doc.data()["updatedAt"] as? Timestamp)?.dateValue(),
-                      let isPublic = doc.data()["isPublic"] as? Bool else {
+                do {
+                    return try doc.data(as: FlashcardSet.self)
+                } catch {
+                    print("Error decoding user's public set \(doc.documentID): \(error.localizedDescription)")
                     return nil
                 }
-
-                let cardsData = doc.data()["cards"] as? [[String: Any]] ?? []
-                let cards = cardsData.compactMap { cardData -> Flashcard? in
-                    guard let question = cardData["question"] as? String,
-                          let answer = cardData["answer"] as? String,
-                          let isStarred = cardData["isStarred"] as? Bool else {
-                        return nil
-                    }
-                    return Flashcard(question: question, answer: answer, isStarred: isStarred)
-                }
-
-                return FlashcardSet(
-                    title: title,
-                    color: Color(hex: colorString),
-                    updatedAt: updatedAt,
-                    cards: cards,
-                    isPublic: isPublic,
-                    shareCode: doc.data()["shareCode"] as? String,
-                    ownerId: userId
-                )
             }
 
         } catch {
             errorMessage = "Failed to fetch your sets: \(error.localizedDescription)"
+            print("SetSharingViewModel: Error fetching user's public sets: \(error.localizedDescription)")
         }
     }
 
