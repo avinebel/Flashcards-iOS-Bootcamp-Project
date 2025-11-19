@@ -67,30 +67,78 @@ struct CreateSetView: View {
                 })
                 Spacer()
             }
-            ScrollView {
+//            ScrollView {
+//                ForEach($cards) { $card in
+//                    ZStack {
+//                        RoundedRectangle(cornerRadius: 10)
+//                            .frame(height: 60)
+//                            .foregroundStyle(.white)
+//                        HStack {
+//                            TextField("Term", text: $card.question)
+//                            Divider()
+//                                .frame(width: 2, height: 50)
+//                            TextField("Definition", text: $card.answer)
+//                        }
+//                        .padding()
+//                    }
+//                }
+//                Button("Add Card") {
+//                    var t = Transaction()
+//                    t.disablesAnimations = true
+//                    withTransaction(t) {
+//                        cards.append(Flashcard(question: "", answer: ""))
+//                    }
+//                }
+//            }
+//            .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 0)
+            List {
                 ForEach($cards) { $card in
                     ZStack {
                         RoundedRectangle(cornerRadius: 10)
                             .frame(height: 60)
                             .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.1), radius: 2)
+
                         HStack {
                             TextField("Term", text: $card.question)
-                            Divider()
-                                .frame(width: 2, height: 50)
+                            Divider().frame(width: 2, height: 50)
                             TextField("Definition", text: $card.answer)
                         }
                         .padding()
                     }
-                }
-                Button("Add Card") {
-                    var t = Transaction()
-                    t.disablesAnimations = true
-                    withTransaction(t) {
-                        cards.append(Flashcard(question: "", answer: ""))
+//                    .frame(maxWidth: .infinity)
+                    .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 0)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 5, bottom: 0, trailing: 5))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            if let i = cards.firstIndex(where: { $0.id == card.id }) {
+                                cards.remove(at: i)
+                            }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
                 }
+
+                HStack {
+                    Spacer()
+                    Button("Add Card") {
+                        var t = Transaction()
+                        t.disablesAnimations = true
+                        withTransaction(t) {
+                            cards.append(Flashcard(question: "", answer: ""))
+                        }
+                    }
+                    .foregroundStyle(.blue)
+                    Spacer()
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             }
-            .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 0)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden) // <- Makes it look EXACTLY like ScrollView
             Spacer()
             ZStack {
                 RoundedRectangle(cornerRadius: 20)
