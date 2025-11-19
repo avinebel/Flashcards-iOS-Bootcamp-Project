@@ -34,6 +34,18 @@ struct ProfileView: View {
                                     Text("My Sets")
                                         .font(.title2.bold())
                                         .padding(.horizontal)
+                                    ScrollView {
+                                        LazyVGrid(columns: grid, spacing: 16) {
+                                            let mySets = authVM.getFlashcardSets()
+                                            ForEach(mySets) { set in
+                                                NavigationLink(destination: FlashcardView(set: set)) {
+                                                    SetCardView(set: set)
+                                                }
+                                                .buttonStyle(.plain)
+                                            }
+                                        }
+                                        .padding()
+                                    }
                                 }
                             } else {
                                 // User is signed in, but we are fetching their user document from Firestore.

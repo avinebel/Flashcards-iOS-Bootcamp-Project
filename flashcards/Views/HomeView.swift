@@ -28,9 +28,7 @@ struct HomeView: View {
     }
     
     @State private var selectedSet: FlashcardSet?
-    @State private var showingSharingOptions = false
     @State private var showingLoginAlert = false
-    
     
     @State private var selectedSetToDelete: FlashcardSet?
     @State private var showingDeleteConfirmation = false
@@ -89,15 +87,8 @@ struct HomeView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingSharingOptions) {
-                if let initialSet = selectedSet {
-                    SetSharingSheetContent(
-                        set: initialSet,
-                        authVM: authVM,
-                        setVM: setVM
-                    )
-                    .presentationDetents([.height(250)])
-                }
+            .navigationDestination(item: $selectedSet) { set in
+                SetSharingView(set: set, authVM: authVM, setVM: setVM)
             }
             // Alert for logged out users attempting to share cloud features
             .alert("Login Required", isPresented: $showingLoginAlert) {
@@ -110,6 +101,7 @@ struct HomeView: View {
                 Button("Delete '\(set.title)'", role: .destructive) {
                     Task {
                         await authVM.deleteSet(setID: set.id.uuidString)
+                        await setVM.deletePublicSet(setID: set.id.uuidString)
                     }
                 }
                 Button("Cancel", role: .cancel) { }
@@ -122,14 +114,13 @@ struct HomeView: View {
     private func shareSet(_ set: FlashcardSet) {
         if case .signedIn = authVM.state {
             selectedSet = set
-            showingSharingOptions = true
         } else {
             showingLoginAlert = true
         }
     }
 }
 
-struct SetSharingSheetContent: View {
+struct SetSharingView: View {
     @Environment(\.dismiss) var dismiss
     
     @State private var editableSet: FlashcardSet
@@ -151,57 +142,50 @@ struct SetSharingSheetContent: View {
     }
     
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    if isSharingEnabled {
-                        // --- Controls visible and enabled when signed in ---
-                        Toggle(
-                            "Make Set Public",
-                            isOn: $editableSet.isPublic
-                        )
-                        .onChange(of: editableSet.isPublic) {
+        Form {
+            Section {
+                if isSharingEnabled {
+                    // --- Controls visible and enabled when signed in ---
+                    Toggle(
+                        "Make Set Public",
+                        isOn: $editableSet.isPublic
+                    )
+                    .onChange(of: editableSet.isPublic) {
+                        saveSetChanges()
+                    }
+
+                    if editableSet.isPublic {
+                        Button("Generate Share Code") {
+                            editableSet.shareCode = setVM.generateShareCode()
                             saveSetChanges()
                         }
 
-                        if editableSet.isPublic {
-                            Button("Generate Share Code") {
-                                editableSet.shareCode = setVM.generateShareCode()
-                                saveSetChanges()
-                            }
-
-                            // Display Share Code
-                            if let shareCode = editableSet.shareCode {
-                                HStack {
-                                    Text("Share Code:")
-                                    Spacer()
-                                    Text(shareCode)
-                                        .font(.system(.body, design: .monospaced))
-                                        .foregroundStyle(.secondary)
-                                }
+                        // Display Share Code
+                        if let shareCode = editableSet.shareCode {
+                            HStack {
+                                Text("Share Code:")
+                                Spacer()
+                                Text(shareCode)
+                                    .font(.system(.body, design: .monospaced))
+                                    .foregroundStyle(.secondary)
                             }
                         }
-                    } else {
-                        // --- Message when signed out ---
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Sharing Not Available")
-                                .font(.headline)
-                            Text("Please sign in to link this set to your account and enable public sharing features.")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-                        .padding(.vertical, 10)
                     }
-                }
-            }
-            .navigationTitle("Share Set")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                Button("Done") {
-                    dismiss()
+                } else {
+                    // --- Message when signed out ---
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Sharing Not Available")
+                            .font(.headline)
+                        Text("Please sign in to link this set to your account and enable public sharing features.")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.vertical, 10)
                 }
             }
         }
+        .navigationTitle("Share Set")
+        .navigationBarTitleDisplayMode(.inline)
     }
     
     private func saveSetChanges() {
@@ -210,11 +194,12 @@ struct SetSharingSheetContent: View {
             
             if editableSet.isPublic {
                 await setVM.saveSet(editableSet)
+            } else {
+                await setVM.deletePublicSet(setID: editableSet.id.uuidString)
             }
         }
     }
 }
-
 #Preview {
     HomeView()
         .environmentObject(AuthViewModel())

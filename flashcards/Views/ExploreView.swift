@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct ExploreView: View {
-    @StateObject private var sharingVM = SetSharingViewModel()
+    @EnvironmentObject var authVM: AuthViewModel
+    @EnvironmentObject var setVM: SetSharingViewModel
     @State private var showingImportSheet = false
     @State private var importCode = ""
     @State private var showingAlert = false
@@ -10,15 +11,18 @@ struct ExploreView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if sharingVM.isLoading {
+                if setVM.isLoading {
                     ProgressView()
                 } else {
-                    List(sharingVM.publicSets) { set in
-                        SetCardView(set: set)
-                            .listRowInsets(EdgeInsets())
-                            .padding(.horizontal)
-                            .padding(.vertical, 8)
+                    List {
+                        ForEach(setVM.publicSets) { set in
+                            SetCardView(set: set)
+                                .listRowInsets(EdgeInsets())
+                                .padding(.horizontal)
+                                .padding(.vertical, 8)
+                        }
                     }
+                    .listStyle(.plain)
                 }
             }
             .navigationTitle("Explore Sets")
@@ -26,7 +30,7 @@ struct ExploreView: View {
                 Button {
                     showingImportSheet = true
                 } label: {
-                    Label("Import Set", systemImage: "square.and.arrow.down")
+                    Image(systemName: "square.and.arrow.down")
                 }
             }
             .sheet(isPresented: $showingImportSheet) {
@@ -41,12 +45,13 @@ struct ExploreView: View {
                         Section {
                             Button("Import") {
                                 Task {
-                                    let success = await sharingVM.importSet(withCode: importCode)
-                                    if success {
+                                    let importedSet = await setVM.importSet(withCode: importCode)
+                                    if importedSet != nil {
+                                        authVM.addNewSet(newSet: importedSet!)
                                         showingImportSheet = false
                                         alertMessage = "Set imported successfully!"
                                     } else {
-                                        alertMessage = sharingVM.errorMessage ?? "Failed to import set"
+                                        alertMessage = setVM.errorMessage ?? "Failed to import set"
                                     }
                                     showingAlert = true
                                 }
@@ -71,7 +76,7 @@ struct ExploreView: View {
             Text(alertMessage)
         }
         .task {
-            await sharingVM.fetchPublicSets()
+            await setVM.fetchPublicSets()
         }
     }
 }

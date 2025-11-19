@@ -101,7 +101,6 @@ final class AuthViewModel: ObservableObject {
     private func migrateLocalSetsToRemote() async {
         let localSets = loadLocalFlashcardSets()
         guard !localSets.isEmpty else {
-            print("AuthViewModel: No local sets to migrate.")
             return
         }
         guard case .signedIn = state, var user = currentUser else {
@@ -139,8 +138,6 @@ final class AuthViewModel: ObservableObject {
             try db.collection("users")
                 .document(uid)
                 .setData(from: user)
-
-            print("AuthViewModel: User document successfully uploaded/updated for UID: \(uid)")
         } catch {
             errorMessage = "Failed to upload user data: \(error.localizedDescription)"
             print("Error uploading user data: \(error.localizedDescription)")

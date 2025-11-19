@@ -175,6 +175,7 @@ struct CreateSetView: View {
             !$0.answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         let newSet = FlashcardSet(
+            id: UUID(),
             title: title.isEmpty ? "Untitled Set" : title,
             color: selectedColor,
             cards: validCards,
