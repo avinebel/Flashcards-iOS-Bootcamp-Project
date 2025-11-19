@@ -222,7 +222,7 @@ struct LoginView: View {
 }
 
 #Preview {
-    var authVM = AuthViewModel()
+    let authVM = AuthViewModel()
     ProfileView()
         .environmentObject(authVM)
 }

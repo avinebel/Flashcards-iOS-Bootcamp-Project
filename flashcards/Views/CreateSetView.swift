@@ -71,7 +71,7 @@ struct CreateSetView: View {
                 ForEach($cards) { $card in
                     ZStack {
                         RoundedRectangle(cornerRadius: 10)
-                            .frame(width: .infinity, height: 60)
+                            .frame(height: 60)
                             .foregroundStyle(.white)
                         HStack {
                             TextField("Term", text: $card.question)
