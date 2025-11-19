@@ -166,9 +166,11 @@ final class AuthViewModel: ObservableObject {
     func signOut() {
         errorMessage = nil
         // Save in local before sign out
-        if case .signedIn = state, let setsToSave = currentUser?.flashcardSets, !setsToSave.isEmpty {
-            saveLocalFlashcardSets(sets: setsToSave)
-        }
+//        if case .signedIn = state, let setsToSave = currentUser?.flashcardSets, !setsToSave.isEmpty {
+//            saveLocalFlashcardSets(sets: setsToSave)
+//        }
+        UserDefaults.standard.removeObject(forKey: localSetsKey)
+        localDataUpdateTrigger.toggle()
         do {
             try Auth.auth().signOut()
         } catch {
