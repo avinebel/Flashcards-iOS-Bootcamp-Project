@@ -20,10 +20,12 @@ struct ExploreView: View {
                             NavigationLink(value: set) {
                                 SetCardView(set: set)
                                     .padding(.horizontal)
-                                    .padding(.vertical, 8)
+                                    .padding(.vertical, 7.5)
                             }
-                            .buttonStyle(.plain)
+                            .navigationLinkIndicatorVisibility(.hidden)
+//                            .buttonStyle(.plain)
                             .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button {
                                     download(set: set)
@@ -105,4 +107,5 @@ struct ExploreView: View {
 
 #Preview {
     ExploreView()
+        .environmentObject(SetSharingViewModel())
 }
