@@ -154,21 +154,19 @@ struct SetSharingView: View {
                         saveSetChanges()
                     }
 
-                    if editableSet.isPublic {
-                        Button("Generate Share Code") {
-                            editableSet.shareCode = setVM.generateShareCode()
-                            saveSetChanges()
-                        }
+                    Button("Generate Share Code") {
+                        editableSet.shareCode = setVM.generateShareCode()
+                        saveSetChanges()
+                    }
 
-                        // Display Share Code
-                        if let shareCode = editableSet.shareCode {
-                            HStack {
-                                Text("Share Code:")
-                                Spacer()
-                                Text(shareCode)
-                                    .font(.system(.body, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
+                    // Display Share Code
+                    if let shareCode = editableSet.shareCode {
+                        HStack {
+                            Text("Share Code:")
+                            Spacer()
+                            Text(shareCode)
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundStyle(.secondary)
                         }
                     }
                 } else {
@@ -192,10 +190,12 @@ struct SetSharingView: View {
         Task {
             await authVM.updateSet(set: editableSet)
             
-            if editableSet.isPublic {
+            let isShared = editableSet.isPublic || editableSet.shareCode != nil
+            
+            if isShared {
                 await setVM.saveSet(editableSet)
             } else {
-                await setVM.deletePublicSet(setID: editableSet.id.uuidString)
+                await setVM.unshareSet(setID: editableSet.id.uuidString)
             }
         }
     }

@@ -92,6 +92,22 @@ final class SetSharingViewModel: ObservableObject {
         }
     }
     
+    func unshareSet(setID: String) async {
+        let docRef = db.collection(PUBLICSET_DOC).document(setID)
+        
+        let updateFields: [String: Any] = [
+            "isPublic": false,
+        ]
+        
+        do {
+            try await docRef.updateData(updateFields)
+            publicSets.removeAll { $0.id.uuidString == setID }
+        } catch {
+            errorMessage = "Failed to unshare set: \(error.localizedDescription)"
+            print("SetSharingViewModel: Error unsharing set \(setID): \(error.localizedDescription)")
+        }
+    }
+    
     func deletePublicSet(setID: String) async {
         let docRef = db.collection(PUBLICSET_DOC).document(setID)
         
