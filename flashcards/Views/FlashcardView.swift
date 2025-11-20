@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct FlashcardView: View {
-    var set: FlashcardSet
+    @State var set: FlashcardSet
     @State private var selection: UUID?
     @State private var flippedCard: UUID? = nil
     @State private var previousCard: UUID? = nil
@@ -25,8 +25,9 @@ struct FlashcardView: View {
                         .foregroundStyle(set.color.opacity(0.4))
                 }
                 Spacer()
-                Button {
-                    // Edit action
+                
+                NavigationLink {
+                    EditFlashcardsView(set: $set)
                 } label: {
                     Image(systemName: "pencil.circle")
                         .font(.largeTitle)
