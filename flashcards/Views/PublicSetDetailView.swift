@@ -20,13 +20,9 @@ struct PublicSetDetailView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
-                        Label {
-                            Text(set.updatedAt, style: .relative)
-                        } icon: {
-                            Image(systemName: "clock.arrow.circlepath")
-                        }
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        Text(set.updatedAt, style: .relative)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding()
