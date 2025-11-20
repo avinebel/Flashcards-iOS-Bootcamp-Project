@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct FlashcardFormView: View {
+    @EnvironmentObject var authVM: AuthViewModel
+    @EnvironmentObject var setVM: SetSharingViewModel
     @Binding var set: FlashcardSet
     var card: Flashcard? = nil
 
@@ -29,8 +31,15 @@ struct FlashcardFormView: View {
         .navigationTitle(card == nil ? "Add Card" : "Edit Card")
         .toolbar {
             Button("Save") {
-                saveCard()
-                dismiss()
+                Task {
+                    saveCard()
+                    dismiss()
+                    await authVM.updateSet(set: set)
+                    if case .signedIn = authVM.state, set.isPublic {
+                        await setVM.saveSet(set)
+                    }
+                }
+                
             }
         }
         .onAppear {

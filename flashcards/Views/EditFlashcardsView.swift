@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct EditFlashcardsView: View {
+    @EnvironmentObject var authVM: AuthViewModel
+    @EnvironmentObject var setVM: SetSharingViewModel
     @Binding var set: FlashcardSet
     
     var body: some View {
@@ -26,7 +28,13 @@ struct EditFlashcardsView: View {
                 }
             }
             .onDelete { indexSet in
-                set.cards.remove(atOffsets: indexSet)
+                Task {
+                    set.cards.remove(atOffsets: indexSet)
+                    await authVM.updateSet(set: set)
+                    if case .signedIn = authVM.state, set.isPublic {
+                        await setVM.saveSet(set)
+                    }
+                }
             }
         }
         .navigationTitle("Edit Cards")
