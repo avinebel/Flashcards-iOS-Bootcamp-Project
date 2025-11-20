@@ -20,12 +20,12 @@ struct FlashcardFormView: View {
     
     var body: some View {
         Form {
-            Section(header: Text("Question")) {
-                TextField("Enter question", text: $questionText)
+            Section(header: Text("Term")) {
+                TextField("Enter Term", text: $questionText)
             }
             
-            Section(header: Text("Answer")) {
-                TextField("Enter answer", text: $answerText)
+            Section(header: Text("Definition")) {
+                TextField("Enter Definition", text: $answerText)
             }
         }
         .navigationTitle(card == nil ? "Add Card" : "Edit Card")
