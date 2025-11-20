@@ -12,14 +12,60 @@ struct EditFlashcardsView: View {
     @EnvironmentObject var setVM: SetSharingViewModel
     @Binding var set: FlashcardSet
     
+    @State private var colorPickerShow: Bool = false
+    let palette: [Color] = [
+        .red, .orange, .yellow, .green, .blue, .purple,
+        .pink, .brown, .black, .gray
+    ]
+    private let columns = [
+        GridItem(.fixed(35)), GridItem(.fixed(35)), GridItem(.fixed(35)), GridItem(.fixed(35))
+    ]
+    
     var body: some View {
         List {
-            Section(header: Text("Set Title")) {
-                TextField("Enter a title for the set", text: $set.title)
-                    .font(.headline)
-                    .onChange(of: set.title) {
-                        saveSetChanges()
+            Section(header: Text("FlashCard Set")) {
+                HStack {
+                    TextField("Enter a title for the set", text: $set.title)
+                        .font(.headline)
+                        .onChange(of: set.title) {
+                            saveSetChanges()
+                        }
+                    Button {
+                        colorPickerShow = true
+                    } label: {
+                        Image(systemName: "circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(set.color.opacity(0.6))
                     }
+                    .sheet(isPresented: $colorPickerShow, content: {
+                        VStack {
+                            Text("Select Card Color")
+                                .font(.headline)
+                                .padding(.top)
+                            LazyVGrid(columns: columns, spacing: 10) {
+                                ForEach(palette, id: \.self) { color in
+                                    Circle()
+                                        .fill(color.opacity(0.6))
+                                        .frame(width: 35, height: 35)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color.primary.opacity(set.color == color ? 0.6 : 0),
+                                                        lineWidth: 3)
+                                        )
+                                        .onTapGesture {
+                                            set.colorHex = color.toHex()
+                                            saveSetChanges()
+                                            withAnimation(.spring(duration: 0.25)) {
+                                                colorPickerShow = false
+                                            }
+                                        }
+                                }
+                            }
+                            .padding()
+                        }
+                        .presentationDetents([.height(200), .medium])
+                    })
+                }
             }
             
             Section(header: Text("Flashcards")) {

@@ -68,20 +68,29 @@ struct FlashcardView: View {
                 
                 previousCard = selection
             }
+            .onChange(of: set.cards.count) {
+                if !set.cards.contains(where: { $0.id == selection }) {
+                    selection = set.cards.first?.id
+                }
+                if let newSelection = selection,
+                   let newIndex = set.cards.firstIndex(where: { $0.id == newSelection }) {
+                    currCardCount = newIndex + 1
+                } else {
+                    currCardCount = set.cards.isEmpty ? 0 : 1
+                }
+            }
             
             // Navigation buttons
             HStack {
                 Button {
                     moveCard(-1)
-                    if (currCardCount != 1) {
-                        currCardCount = currCardCount - 1
-                    }
                 } label: {
                     Image(systemName: "chevron.left")
                         .padding()
                         .foregroundStyle(Color.gray)
                         .background(Circle().fill(set.color.opacity(0.15)))
                 }
+                .disabled(selection == set.cards.first?.id)
                 
                 Spacer()
                 Text("\(currCardCount)/\(set.cardCount)")
@@ -91,15 +100,13 @@ struct FlashcardView: View {
                 
                 Button {
                     moveCard(1)
-                    if (currCardCount != set.cardCount) {
-                        currCardCount = currCardCount + 1
-                    }
                 } label: {
                     Image(systemName: "chevron.right")
                         .padding()
                         .foregroundStyle(Color.gray)
                         .background(Circle().fill(set.color.opacity(0.15)))
                 }
+                .disabled(selection == set.cards.last?.id)
             }
             .padding(.horizontal, 50)
             .padding(.top, 20)
@@ -108,7 +115,7 @@ struct FlashcardView: View {
         .onAppear {
             selection = set.cards.first?.id
             previousCard = selection
-            currCardCount = 1
+            currCardCount = set.cards.isEmpty ? 0 : 1
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)

@@ -42,7 +42,13 @@ struct FlashcardSet: Identifiable, Hashable, Codable {
     var cardCount: Int { cards.count }
 
     var color: Color {
-        Color(hex: colorHex ?? "000000")
+        get {
+            Color(hex: colorHex ?? "000000")
+        }
+        set {
+            colorHex = newValue.toHex()
+            updatedAt = .now
+        }
     }
     
     init(

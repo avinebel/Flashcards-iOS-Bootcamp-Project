@@ -23,7 +23,7 @@ struct CreateSetView: View {
     
     let palette: [Color] = [
             .red, .orange, .yellow, .green, .blue, .purple,
-            .pink, .brown, .black, .gray, .white
+            .pink, .brown, .black, .gray
         ]
     
     private let columns = [
