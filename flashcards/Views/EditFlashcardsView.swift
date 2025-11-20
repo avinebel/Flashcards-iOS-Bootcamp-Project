@@ -14,35 +14,54 @@ struct EditFlashcardsView: View {
     
     var body: some View {
         List {
-            ForEach(set.cards) { card in
-                NavigationLink {
-                    FlashcardFormView(set: $set, card: card)
-                } label: {
-                    VStack(alignment: .leading) {
-                        Text(card.question)
-                            .font(.headline)
-                        Text(card.answer)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+            Section(header: Text("Set Title")) {
+                TextField("Enter a title for the set", text: $set.title)
+                    .font(.headline)
+                    .onChange(of: set.title) {
+                        saveSetChanges()
+                    }
+            }
+            
+            Section(header: Text("Flashcards")) {
+                ForEach(set.cards) { card in
+                    NavigationLink {
+                        FlashcardFormView(set: $set, card: card)
+                    } label: {
+                        VStack(alignment: .leading) {
+                            Text(card.question)
+                                .font(.headline)
+                            Text(card.answer)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
-            }
-            .onDelete { indexSet in
-                Task {
-                    set.cards.remove(atOffsets: indexSet)
-                    await authVM.updateSet(set: set)
-                    if case .signedIn = authVM.state, set.isPublic {
-                        await setVM.saveSet(set)
+                .onDelete { indexSet in
+                    Task {
+                        set.cards.remove(atOffsets: indexSet)
+                        saveSetChanges()
                     }
                 }
             }
         }
-        .navigationTitle("Edit Cards")
+        .navigationTitle("Edit: \(set.title)")
         .toolbar {
             NavigationLink {
                 FlashcardFormView(set: $set)
             } label: {
                 Image(systemName: "plus")
+            }
+        }
+    }
+    
+    private func saveSetChanges() {
+        Task {
+            await authVM.updateSet(set: set)
+            
+            let isShared = set.isPublic || set.shareCode != nil
+            
+            if isShared {
+                await setVM.saveSet(set)
             }
         }
     }
