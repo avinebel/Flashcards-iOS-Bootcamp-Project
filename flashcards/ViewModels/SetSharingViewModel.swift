@@ -72,24 +72,35 @@ final class SetSharingViewModel: ObservableObject {
             }
             
             let sharedSet = try doc.data(as: FlashcardSet.self)
-            
-            let newSet = FlashcardSet(
-                id: UUID(),
-                title: sharedSet.title,
-                color: sharedSet.color,
-                updatedAt: .now,
-                cards: sharedSet.cards,
-                isPublic: false,
-                shareCode: nil,
-                ownerId: Auth.auth().currentUser?.uid
-            )
-            return newSet
-            
+            return makePersonalCopy(from: sharedSet)
         } catch {
             errorMessage = "Failed to import set: \(error.localizedDescription)"
             print("SetSharingViewModel: Error importing set: \(error.localizedDescription)")
             return nil
         }
+    }
+
+    /// Creates a private copy of a public set to add to the user's account or local storage.
+    func makePersonalCopy(from publicSet: FlashcardSet) -> FlashcardSet {
+        let ownerId = Auth.auth().currentUser?.uid
+        let copiedCards = publicSet.cards.map {
+            Flashcard(
+                question: $0.question,
+                answer: $0.answer,
+                isStarred: $0.isStarred
+            )
+        }
+
+        return FlashcardSet(
+            id: UUID(),
+            title: publicSet.title,
+            color: publicSet.color,
+            updatedAt: .now,
+            cards: copiedCards,
+            isPublic: false,
+            shareCode: nil,
+            ownerId: ownerId
+        )
     }
     
     func deletePublicSet(setID: String) async {

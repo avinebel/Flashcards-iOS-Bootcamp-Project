@@ -16,10 +16,21 @@ struct ExploreView: View {
                 } else {
                     List {
                         ForEach(setVM.publicSets) { set in
-                            SetCardView(set: set)
-                                .listRowInsets(EdgeInsets())
-                                .padding(.horizontal)
-                                .padding(.vertical, 8)
+                            NavigationLink(value: set) {
+                                SetCardView(set: set)
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.plain)
+                            .listRowInsets(EdgeInsets())
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button {
+                                    download(set: set)
+                                } label: {
+                                    Label("Download", systemImage: "arrow.down.circle.fill")
+                                }
+                                .tint(.blue)
+                            }
                         }
                     }
                     .listStyle(.plain)
@@ -70,14 +81,24 @@ struct ExploreView: View {
                 .presentationDetents([.height(250)])
             }
         }
-        .alert("Import Set", isPresented: $showingAlert) {
+        .alert("Explore", isPresented: $showingAlert) {
             Button("OK", role: .cancel) { }
         } message: {
             Text(alertMessage)
         }
+        .navigationDestination(for: FlashcardSet.self) { set in
+            PublicSetDetailView(set: set)
+        }
         .task {
             await setVM.fetchPublicSets()
         }
+    }
+    
+    private func download(set: FlashcardSet) {
+        let newSet = setVM.makePersonalCopy(from: set)
+        authVM.addNewSet(newSet: newSet)
+        alertMessage = "Set downloaded to your library."
+        showingAlert = true
     }
 }
 
