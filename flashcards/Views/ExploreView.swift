@@ -3,13 +3,14 @@ import SwiftUI
 struct ExploreView: View {
     @EnvironmentObject var authVM: AuthViewModel
     @EnvironmentObject var setVM: SetSharingViewModel
+    @State private var navigationPath = NavigationPath()
     @State private var showingImportSheet = false
     @State private var importCode = ""
     @State private var showingAlert = false
     @State private var alertMessage = ""
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Group {
                 if setVM.isLoading {
                     ProgressView()
@@ -37,6 +38,9 @@ struct ExploreView: View {
                 }
             }
             .navigationTitle("Explore Sets")
+            .navigationDestination(for: FlashcardSet.self) { set in
+                PublicSetDetailView(set: set)
+            }
             .toolbar {
                 Button {
                     showingImportSheet = true
@@ -85,9 +89,6 @@ struct ExploreView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text(alertMessage)
-        }
-        .navigationDestination(for: FlashcardSet.self) { set in
-            PublicSetDetailView(set: set)
         }
         .task {
             await setVM.fetchPublicSets()
